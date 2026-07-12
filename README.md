@@ -40,8 +40,6 @@ cd <repo>
 .\Setup-Windows.ps1
 ```
 
-`git clone` unngår Mark-of-the-Web helt (i motsetning til nedlasting via nettleser/Invoke-WebRequest), så ingen Unblock-File nødvendig. Hvis repoet er privat spør git om innlogging via Git Credential Manager (nettleser-popup).
-
 Scriptet kan kjøres gjentatte ganger. Hvert steg ber om bekreftelse. Steg:
 1. Winget-pakker (idempotent, sjekker om allerede installert)
 2. Global git config (navn/e-post, printer `git config --list` etterpå)
@@ -76,12 +74,14 @@ Kjør driverinstallasjon med NVCleanstall
 
 #### Flow Launcher:
 - Font: Jetbrains Mono
+- Gå gjennom settings
 - Appearance:
     - Windows 11 + Acrylic
     - Skru av klokke
 - Extensions:
-    - Caffeine
+    - Installer Caffeine
     - Bookmarks: sett til brave path
+    - Explorer: sett opp everything. Hvis man prøver et søk blir man promptet til å installere.
 
 #### Git:
 - ssh key for GitHub, hent fra Bitwarden
@@ -103,3 +103,17 @@ Kjør driverinstallasjon med NVCleanstall
 
 TODO:
 slette søppel i onedrive/documents før reinstallasjon, så det ikke ødelegger når onedrive lastes ned
+legg til et steg som alene godkjenner om man vil installere Microsoft.OneDrive med winget
+
+
+Feil fra testkjøring:
+- 7 zip feilet (stod cancelled, selv om jeg ikke kansellerte) (exit code -2147467260)
+- spotify kan ikke lastes ned fra admin, fikk error
+- ved reload av path før python install kom det en lang melding om for lang path/for mange characters i path elns. Men alt så til å funke og python ble installert. Vet du hva det kan være? 
+- vindu lukkes med en gang det er ferdig, vil at det stopper på slutten og holder vinduet åpent, så man faktisk kan lese prints på slutten og lukke vindu når man vil
+- milennium kopier mappe funket ikke. Roll back til å laste ned installer til downloads. Kan 
+- la flow launcher installere everything, i stedet for å ha i winget
+
+fjern døde profiler fra terminal config, fjern alt utenom powershell 7 & 5, og cmd
+
+microwin fjernet ingen bloat apps, test tiny11 heller
