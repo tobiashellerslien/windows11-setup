@@ -101,5 +101,6 @@ git config --global user.email "you@example.com"
 
 TODO:
 mangler nyeste versjon av scriptet fra claude
-slette søppel i onedrive/documents så før reinstallasjon, så det ikke ødelegger når onedrive lastes ned
-lagre github ssh key for windows i bitwarden? slette wsl ssh key?
+legge inn inputs for git global config, så det blir gjort i setup scriptet
+
+slette søppel i onedrive/documents før reinstallasjon, så det ikke ødelegger når onedrive lastes ned
