@@ -1,0 +1,23 @@
+[
+  { "Id": "Microsoft.PowerShell" },
+  { "Id": "Microsoft.WindowsTerminal" },
+  { "Id": "7zip.7zip" },
+  { "Id": "Bitwarden.Bitwarden" },
+  { "Id": "Brave.Brave" },
+  { "Id": "Flow-Launcher.Flow-Launcher" },
+  { "Id": "Discord.Discord" },
+  { "Id": "Git.Git" },
+  { "Id": "FastStone.Viewer" },
+  { "Id": "Microsoft.VisualStudioCode" },
+  { "Id": "Python.PythonInstallManager" },
+  { "Id": "Spotify.Spotify" },
+  { "Id": "Valve.Steam" },
+  { "Id": "LocalSend.LocalSend" },
+  { "Id": "TechPowerUp.NVCleanstall" },
+  { "Id": "Obsidian.Obsidian" },
+  { "Id": "SumatraPDF.SumatraPDF" },
+  { "Id": "Surfshark.Surfshark" },
+  { "Id": "Devolutions.UniGetUI" },
+  { "Id": "PrismLauncher.PrismLauncher" },
+  { "Id": "Fastfetch-cli.Fastfetch" }
+]
