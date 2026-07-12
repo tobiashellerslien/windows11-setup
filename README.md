@@ -8,7 +8,7 @@
 - Flash USB med [Rufus](https://rufus.ie/en/). Rufus sine ISO innstillinger er ikke nødvendig etter ISO allerede er modifisert.
 
 ### 1. Drivere
-Last ned fra [ASUS](https://www.asus.com/supportonly/ga503qm/helpdesk_download/)
+Last ned fra [ASUS](https://www.asus.com/supportonly/ga503qm/helpdesk_download/).
 Nvidia GPU drivere med NVCleanstall senere.
 
 ### 2. Windows Update
@@ -22,7 +22,8 @@ irm https://christitus.com/win | iex
 Kan også sette custom DNS, classic contex menu, right click end task m.m.
 
 ### 4. Kjør powershell script for å installere programmer
-Last ned repoet
+Last ned repoet.
+Kjør script:
 ```
 .\Setup-Windows.ps1
 ```
@@ -31,7 +32,7 @@ Scriptet kan kjøres gjentatte ganger. Hvert steg ber om bekreftelse.
 På slutten gir det links til nedlastinger som må gjøres manuelt, de er også her:
 - Ente Auth: https://github.com/ente/ente
 - BCUninstaller: https://github.com/BCUninstaller/Bulk-Crap-Uninstaller/releases
-- mpv: https://github.com/shinchiro/mpv-winbuild-cmake/releases (+ config fra configfiles/mpv.conf.zip -> `$env:APPDATA\mpv)
+- mpv: https://github.com/shinchiro/mpv-winbuild-cmake/releases (+ config fra configfiles/mpv.conf.zip -> $APPDATA$\mpv)
 - GoodNotes/MagicPods (Microsoft Store)
 - Microsoft 365 (https://m365.cloud.microsoft/apps) -> login med NTNU konto
 
