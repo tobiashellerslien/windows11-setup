@@ -5,17 +5,22 @@
 .DESCRIPTION
     1) Installerer alle winget-pakker fra packages.json (idempotent - kan kjøres flere ganger).
     2) Kjører videre oppsett-steg, hvert med bekreftelse (j/N) før det kjøres.
+    Hvert steg er isolert: hvis ett steg feiler, varsles det og resten av scriptet fortsetter.
 .NOTES
     Kjør med: pwsh -File .\Setup-Windows.ps1
     Scriptet ber selv om admin-rettigheter hvis det ikke allerede kjører elevert.
-    Forventer at Microsoft.PowerShell_profile.ps1 og packages.json ligger i samme mappe som dette scriptet.
+    Forventer at Microsoft.PowerShell_profile.ps1, packages.json og configfiles\ (millennium.zip,
+    terminal.settings.json) ligger i/under samme mappe som dette scriptet.
 #>
 
 [CmdletBinding()]
 param(
     [string]$PackagesJson = (Join-Path $PSScriptRoot 'packages.json'),
     [string]$ProfileSource = (Join-Path $PSScriptRoot 'Microsoft.PowerShell_profile.ps1'),
-    [string]$ToolsDir     = 'C:\Tools'
+    [string]$ToolsDir     = 'C:\Tools',
+    [string]$SteamDir     = 'C:\Program Files (x86)\Steam',
+    [string]$MillenniumZip = (Join-Path $PSScriptRoot 'configfiles\millennium.zip'),
+    [string]$TerminalSettingsSource = (Join-Path $PSScriptRoot 'configfiles\terminal.settings.json')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,6 +45,35 @@ function Confirm-Step {
     param([string]$Message)
     $resp = Read-Host "$Message (j/N)"
     return $resp -match '^[jJyY]'
+}
+
+# Kjører ett steg isolert: ber om bekreftelse, kjører scriptblokka i try/catch,
+# og varsler + fortsetter til neste steg i stedet for å drepe hele scriptet ved feil.
+function Invoke-Step {
+    param(
+        [Parameter(Mandatory)][string]$Message,
+        [Parameter(Mandatory)][scriptblock]$Action
+    )
+
+    if (-not (Confirm-Step $Message)) {
+        return
+    }
+
+    try {
+        & $Action
+    } catch {
+        Write-Warning "Steget feilet - hopper videre til neste steg. Feil: $_"
+    }
+}
+
+# PATH oppdateres i registeret av winget/installere, men denne prosessens $env:Path
+# er allerede lest inn og oppdages ikke automatisk. Kall denne etter winget-installasjoner
+# som senere steg i SAMME kjøring er avhengig av (f.eks. 'py' rett etter Python-installasjon,
+# eller 'git' rett etter git-installasjon).
+function Sync-EnvironmentPath {
+    $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+    $userPath    = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $env:Path = @($machinePath, $userPath) -join ';'
 }
 
 function Test-WingetPackageInstalled {
@@ -88,6 +122,61 @@ function Add-ToMachinePath {
     else {
         Write-Host "$Directory er allerede i PATH." -ForegroundColor DarkGray
     }
+    Sync-EnvironmentPath
+}
+
+# Pakker ut en zip til $Destination uten å skape et dobbelt mappenivå.
+# Hvis zip-en har én enkelt mappe på toppnivå (f.eks. "millennium\..."), kopieres
+# INNHOLDET i den mappa direkte til $Destination i stedet for å beholde wrapper-mappa.
+function Expand-ArchiveFlatten {
+    param(
+        [Parameter(Mandatory)][string]$ZipPath,
+        [Parameter(Mandatory)][string]$Destination
+    )
+
+    if (-not (Test-Path -Path $ZipPath -PathType Leaf)) {
+        throw "Fant ikke zip-fil: $ZipPath"
+    }
+
+    $tempExtract = Join-Path $env:TEMP ("extract_" + [guid]::NewGuid())
+    Expand-Archive -Path $ZipPath -DestinationPath $tempExtract -Force
+
+    try {
+        $rootItems = Get-ChildItem -Path $tempExtract
+        $sourceDir = $tempExtract
+        if ($rootItems.Count -eq 1 -and $rootItems[0].PSIsContainer) {
+            # Zip hadde én wrapper-mappe på toppnivå - bruk innholdet i den for å unngå dobbelt nivå
+            $sourceDir = $rootItems[0].FullName
+        }
+
+        if (-not (Test-Path -Path $Destination)) {
+            New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+        }
+
+        Copy-Item -Path (Join-Path $sourceDir '*') -Destination $Destination -Recurse -Force
+    } finally {
+        Remove-Item -Path $tempExtract -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# Lager en .lnk-snarvei i Startup-mappa, slik at $TargetPath starter automatisk ved innlogging.
+function New-StartupShortcut {
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string]$TargetPath
+    )
+
+    $startupDir = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup'
+    Ensure-Directory $startupDir
+    $shortcutPath = Join-Path $startupDir "$Name.lnk"
+
+    $wshShell = New-Object -ComObject WScript.Shell
+    $shortcut = $wshShell.CreateShortcut($shortcutPath)
+    $shortcut.TargetPath = $TargetPath
+    $shortcut.WorkingDirectory = Split-Path -Path $TargetPath -Parent
+    $shortcut.Save()
+
+    Write-Host "Autostart-snarvei laget: $shortcutPath" -ForegroundColor Green
 }
 #endregion
 
@@ -234,13 +323,61 @@ function Install-CustomProfile {
 }
 #endregion
 
-#region Steg 1: Winget-pakker
-Write-Host "`n=== STEG 1: Winget-pakker ===" -ForegroundColor Magenta
-Install-WingetPackages -JsonPath $PackagesJson
+#region Oppdater winget
+Write-Host "`n=== Oppdaterer winget ===" -ForegroundColor Magenta
+try {
+    winget upgrade --id Microsoft.AppInstaller --source msstore --accept-package-agreements --accept-source-agreements --silent
+    winget source update
+} catch {
+    Write-Warning "Klarte ikke oppdatere winget - fortsetter med eksisterende versjon. Feil: $_"
+}
 #endregion
 
-#region Steg 2: Brave debloat (registry policies)
-if (Confirm-Step "`n=== STEG 2: Kjøre Brave debloat (registry policies)? ===") {
+#region Steg 1: Winget-pakker
+Write-Host "`n=== STEG 1: Winget-pakker ===" -ForegroundColor Magenta
+try {
+    Install-WingetPackages -JsonPath $PackagesJson
+} catch {
+    Write-Warning "Steg 1 feilet delvis - hopper videre. Feil: $_"
+}
+Sync-EnvironmentPath
+#endregion
+
+#region Steg 2: Global git config
+Invoke-Step -Message "`n=== STEG 2: Sette opp global git config (navn/e-post)? ===" -Action {
+    Sync-EnvironmentPath
+
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+        Write-Warning "Fant ikke 'git'. Sjekk at Git.Git ble installert i steg 1, eller kjør dette steget på nytt i en ny PowerShell-økt."
+        return
+    }
+
+    $currentName  = git config --global user.name 2>$null
+    $currentEmail = git config --global user.email 2>$null
+
+    $namePrompt = if ($currentName) { "Git brukernavn [$currentName]" } else { 'Git brukernavn' }
+    $nameInput = Read-Host $namePrompt
+    if ([string]::IsNullOrWhiteSpace($nameInput)) { $nameInput = $currentName }
+
+    $emailPrompt = if ($currentEmail) { "Git e-post [$currentEmail]" } else { 'Git e-post' }
+    $emailInput = Read-Host $emailPrompt
+    if ([string]::IsNullOrWhiteSpace($emailInput)) { $emailInput = $currentEmail }
+
+    if ([string]::IsNullOrWhiteSpace($nameInput) -or [string]::IsNullOrWhiteSpace($emailInput)) {
+        Write-Warning "Mangler brukernavn eller e-post - hopper over git config."
+        return
+    }
+
+    git config --global user.name $nameInput
+    git config --global user.email $emailInput
+
+    Write-Host "`nGit global config:" -ForegroundColor Green
+    git config --list
+}
+#endregion
+
+#region Steg 3: Brave debloat (registry policies) + tvungen installasjon av extensions
+Invoke-Step -Message "`n=== STEG 3: Kjøre Brave debloat + installere Bitwarden/Surfshark/Unhook/SponsorBlock via policy? ===" -Action {
     $regContent = @'
 Windows Registry Editor Version 5.00
 ; Brave Debloat Policy by Anxarden (v1.84-v1.92+)
@@ -268,19 +405,28 @@ Windows Registry Editor Version 5.00
 "TranslateEnabled"=dword:00000000
 "DnsOverHttpsMode"="secure"
 "DnsOverHttpsTemplates"="https://dns.adguard-dns.com/dns-query"
+
+; Tvungen installasjon av extensions (installeres stille ved neste Brave-oppstart)
+; 1 = Bitwarden, 2 = Surfshark VPN, 3 = Unhook, 4 = SponsorBlock
+[HKEY_LOCAL_MACHINE\Software\Policies\BraveSoftware\Brave\ExtensionInstallForcelist]
+"1"="nngceckbapebfimnlniiiahkandclblb;https://clients2.google.com/service/update2/crx"
+"2"="ailoabdmgclmfmhdagmlohpjlbpffblp;https://clients2.google.com/service/update2/crx"
+"3"="khncfooichmfjbepaaaebmommgaepoid;https://clients2.google.com/service/update2/crx"
+"4"="mnjggcdmjocbbbhaepdhchncahnbgone;https://clients2.google.com/service/update2/crx"
 '@
     $regPath = Join-Path $env:TEMP 'brave-debloat.reg'
     Set-Content -Path $regPath -Value $regContent -Encoding Unicode
     reg import $regPath
     Remove-Item $regPath -Force
-    Write-Host "Brave-policies satt." -ForegroundColor Green
+    Write-Host "Brave-policies satt (inkl. tvungen installasjon av extensions)." -ForegroundColor Green
 }
 #endregion
 
-#region Steg 3: PowerShell-oppsett (oh-my-posh, zoxide, Terminal-Icons, JetBrains Mono font, profil)
-if (Confirm-Step "`n=== STEG 3: Sette opp PowerShell (oh-my-posh, zoxide, Terminal-Icons, JetBrains Mono Nerd Font, profil)? ===") {
+#region Steg 4: PowerShell-oppsett (oh-my-posh, zoxide, Terminal-Icons, JetBrains Mono font, profil)
+Invoke-Step -Message "`n=== STEG 4: Sette opp PowerShell (oh-my-posh, zoxide, Terminal-Icons, JetBrains Mono Nerd Font, profil)? ===" -Action {
     Install-WinGetPackage -Id 'JanDeDobbeleer.OhMyPosh' -Name 'Oh My Posh' | Out-Null
     Install-WinGetPackage -Id 'ajeetdsouza.zoxide' -Name 'zoxide' | Out-Null
+    Sync-EnvironmentPath
     Install-OhMyPoshTheme | Out-Null
     Install-NerdFont | Out-Null
     Install-TerminalIconsModule | Out-Null
@@ -293,22 +439,54 @@ if (Confirm-Step "`n=== STEG 3: Sette opp PowerShell (oh-my-posh, zoxide, Termin
 }
 #endregion
 
-#region Steg 4: Python via Python Install Manager
-if (Confirm-Step "`n=== STEG 4: Installere nyeste Python via Python Install Manager? ===") {
+#region Steg 5: Windows Terminal-innstillinger
+Invoke-Step -Message "`n=== STEG 5: Kopiere Windows Terminal-innstillinger fra configfiles\terminal.settings.json? ===" -Action {
+    if (-not (Test-Path -Path $TerminalSettingsSource -PathType Leaf)) {
+        Write-Warning "Fant ikke $TerminalSettingsSource. Hopper over."
+        return
+    }
+
+    $packageDir = Get-ChildItem -Path "$env:LOCALAPPDATA\Packages" -Filter 'Microsoft.WindowsTerminal_*' -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $packageDir) {
+        Write-Warning "Fant ikke Windows Terminal sin pakkemappe under $env:LOCALAPPDATA\Packages. Windows Terminal må som regel åpnes minst én gang før mappa opprettes - kjør dette steget på nytt etter det. Hopper over."
+        return
+    }
+
+    $localStateDir = Join-Path $packageDir.FullName 'LocalState'
+    Ensure-Directory $localStateDir
+    $settingsPath = Join-Path $localStateDir 'settings.json'
+
+    if (Test-Path -Path $settingsPath -PathType Leaf) {
+        $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+        Copy-Item -Path $settingsPath -Destination (Join-Path $localStateDir "settings-backup-$timestamp.json") -Force
+        Write-Host "Gamle innstillinger sikkerhetskopiert." -ForegroundColor DarkGray
+    }
+
+    Copy-Item -Path $TerminalSettingsSource -Destination $settingsPath -Force
+    Write-Host "Windows Terminal-innstillinger kopiert til $settingsPath" -ForegroundColor Green
+}
+#endregion
+
+#region Steg 6: Python via Python Install Manager
+Invoke-Step -Message "`n=== STEG 6: Installere nyeste Python via Python Install Manager? ===" -Action {
+    # Nødvendig selv om Python.PythonInstallManager ble installert i steg 1 i samme kjøring:
+    # denne prosessens PATH ble lest inn før winget skrev den nye verdien til registeret.
+    Sync-EnvironmentPath
+
     if (Get-Command py -ErrorAction SilentlyContinue) {
         py install
         py install --configure
     }
     else {
-        Write-Warning "Fant ikke kommandoen 'py' - sjekk at Python.PythonInstallManager ble installert i steg 1 (kan kreve ny PowerShell-sesjon for at PATH skal oppdateres)."
+        Write-Warning "Fant ikke kommandoen 'py' selv etter PATH-sync. Sjekk at Python.PythonInstallManager ble installert i steg 1, eller kjør steg 6 på nytt i en ny PowerShell-økt."
     }
 }
 #endregion
 
-Write-Host "`n=== DIVERSE NEDLASTINGER ===" -ForegroundColor Cyan
+Write-Host "`n=== DIVERSE NEDLASTINGER OG UTPAKKING ===" -ForegroundColor Cyan
 
-#region Steg 5: yt-dlp
-if (Confirm-Step "`n=== STEG 5: Laste ned yt-dlp.exe til $ToolsDir og legge i PATH? ===") {
+#region Steg 7: yt-dlp
+Invoke-Step -Message "`n=== STEG 7: Laste ned yt-dlp.exe til $ToolsDir og legge i PATH? ===" -Action {
     Ensure-Directory $ToolsDir
     $ytDlpPath = Join-Path $ToolsDir 'yt-dlp.exe'
     Invoke-WebRequest -Uri 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe' -OutFile $ytDlpPath
@@ -317,33 +495,41 @@ if (Confirm-Step "`n=== STEG 5: Laste ned yt-dlp.exe til $ToolsDir og legge i PA
 }
 #endregion
 
-#region Steg 6: Millennium (Steam-tema-installer) -> Downloads
-if (Confirm-Step "`n=== STEG 6: Laste ned Millennium-installer til Downloads? ===") {
-    $downloads = Join-Path $env:USERPROFILE 'Downloads'
-    Invoke-WebRequest -Uri 'https://github.com/SteamClientHomebrew/Installer/releases/latest/download/MillenniumInstaller-Windows.exe' `
-        -OutFile (Join-Path $downloads 'MillenniumInstaller-Windows.exe')
-    Write-Host "Lagt i $downloads - kjør installeren manuelt." -ForegroundColor Green
+#region Steg 8: Millennium (Steam-tema) - pakk ut lokal zip i Steam-mappen
+Invoke-Step -Message "`n=== STEG 8: Pakke ut Millennium (configfiles\millennium.zip) til $SteamDir\millennium? ===" -Action {
+    if (-not (Test-Path -Path $SteamDir)) {
+        Write-Warning "Fant ikke Steam-mappen: $SteamDir. Hopper over Millennium."
+        return
+    }
+    if (-not (Test-Path -Path $MillenniumZip -PathType Leaf)) {
+        Write-Warning "Fant ikke $MillenniumZip. Hopper over Millennium."
+        return
+    }
+
+    $millenniumDest = Join-Path $SteamDir 'millennium'
+    Expand-ArchiveFlatten -ZipPath $MillenniumZip -Destination $millenniumDest
+    Write-Host "Millennium pakket ut til $millenniumDest" -ForegroundColor Green
 }
 #endregion
 
-#region Steg 7: G-Helper -> C:\Tools
-if (Confirm-Step "`n=== STEG 7: Laste ned GHelper.exe til $ToolsDir? ===") {
+#region Steg 9: G-Helper -> C:\Tools
+Invoke-Step -Message "`n=== STEG 9: Laste ned GHelper.exe til $ToolsDir og sette opp autostart? ===" -Action {
     Ensure-Directory $ToolsDir
-    Invoke-WebRequest -Uri 'https://github.com/seerge/g-helper/releases/latest/download/GHelper.exe' `
-        -OutFile (Join-Path $ToolsDir 'GHelper.exe')
-    Write-Host "G-Helper lagt i $ToolsDir. Husk å sette 'start ved oppstart' manuelt inne i appen." -ForegroundColor Green
+    $gHelperPath = Join-Path $ToolsDir 'GHelper.exe'
+    Invoke-WebRequest -Uri 'https://github.com/seerge/g-helper/releases/latest/download/GHelper.exe' -OutFile $gHelperPath
+    Write-Host "G-Helper lagt i $ToolsDir." -ForegroundColor Green
 }
 #endregion
 
-#region Steg 8: FileConverter (ingen direktelink - åpner nedlastingsside)
-if (Confirm-Step "`n=== STEG 8: Åpne nedlastingssiden for FileConverter? (ingen stabil direktelink funnet) ===") {
+#region Steg 10: FileConverter (ingen direktelink - åpner nedlastingsside)
+Invoke-Step -Message "`n=== STEG 10: Åpne nedlastingssiden for FileConverter? (ingen stabil direktelink funnet) ===" -Action {
     Write-Host "FileConverter har ingen stabil direkte-nedlastingslink. Åpner siden i nettleser..." -ForegroundColor Yellow
     Start-Process 'https://file-converter.io/download.html'
 }
 #endregion
 
 Write-Host "`n=== Oppsett fullført ===" -ForegroundColor Cyan
-Write-Host "Gjenstår manuelt: " -ForegroundColor Cyan
+Write-Host "Manuelle installasjoner som gjenstår: " -ForegroundColor Cyan
 Write-Host "Ente Auth: https://github.com/ente/ente" -ForegroundColor Cyan
 Write-Host "BCUninstaller: https://github.com/BCUninstaller/Bulk-Crap-Uninstaller/releases" -ForegroundColor Cyan
 Write-Host "mpv: https://github.com/shinchiro/mpv-winbuild-cmake/releases (+ config fra configfiles/mpv.conf.zip -> `$env:APPDATA\mpv)" -ForegroundColor Cyan
