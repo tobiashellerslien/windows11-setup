@@ -35,27 +35,21 @@ Lukk vinduet.
 
 **B) Åpne en ny terminal og skriv `pwsh`:**
 ```
-git clone https://github.com/<bruker>/<repo>.git
-cd <repo>
+git clone https://github.com/tobiashellerslien/windows11-setup.git
+cd windows11-setup
 .\Setup-Windows.ps1
 ```
 
 Scriptet kan kjøres gjentatte ganger. Hvert steg ber om bekreftelse. Steg:
-1. Winget-pakker (idempotent, sjekker om allerede installert)
-2. Global git config (navn/e-post, printer `git config --list` etterpå)
-3. Brave debloat (registry policies) + tvungen installasjon av extensions (Bitwarden, Surfshark VPN, Unhook, SponsorBlock)
-4. PowerShell-oppsett: oh-my-posh (hul10-tema), zoxide, Terminal-Icons, JetBrains Mono Nerd Font, kopierer inn `Microsoft.PowerShell_profile.ps1`
-5. Windows Terminal-innstillinger (kopierer configfiles/terminal.settings.json inn - krever at Terminal er åpnet minst én gang først)
-6. Python (nyeste versjon via Python Install Manager)
-7. yt-dlp -> C:\Tools + PATH
-8. Millennium (Steam-tema) - pakker ut configfiles/millennium.zip til Steam-mappen
-9. G-Helper -> C:\Tools + autostart-snarvei
-10. FileConverter (åpner nedlastingssiden, ingen stabil direktelink)
+- Winget-pakker (sjekker om programmer allerede er installert før den installerer)
+- Global git config (navn/e-post, printer `git config --list` etterpå)
+- Brave debloat (registry policies) + tvungen installasjon av extensions (Bitwarden, Surfshark VPN, Unhook, SponsorBlock)
+- PowerShell-oppsett: oh-my-posh (hul10-tema), zoxide, Terminal-Icons, JetBrains Mono Nerd Font, kopierer inn `Microsoft.PowerShell_profile.ps1`
+- Windows Terminal-innstillinger (kopierer configfiles/terminal.settings.json inn - krever at Terminal er åpnet minst én gang først)
+- Python (nyeste versjon via Python Install Manager)
+- FileConverter (åpner nedlastingssiden, ingen stabil direktelink og ligger ikke i winget)
 
 På slutten gir det links til nedlastinger som fortsatt må gjøres manuelt, de er også her:
-- Ente Auth: https://github.com/ente/ente
-- BCUninstaller: https://github.com/BCUninstaller/Bulk-Crap-Uninstaller/releases
-- mpv: https://github.com/shinchiro/mpv-winbuild-cmake/releases (+ config fra configfiles/mpv.conf.zip -> $APPDATA$\mpv)
 - GoodNotes/MagicPods (Microsoft Store)
 - Microsoft 365 (https://m365.cloud.microsoft/apps) -> login med NTNU konto
 
@@ -65,8 +59,8 @@ På slutten gir det links til nedlastinger som fortsatt må gjøres manuelt, de 
 Kjør driverinstallasjon med NVCleanstall
 
 #### G-helper
-- Åpne med ASUS ROG knapp
-- Sjekk andre innstillinger
+- Sett opp til å starte med PC-en og åpne med ASUS ROG knapp
+- Gå gjennom innstillinger
 
 #### Brave Browser:
 - Importer bokmerker fra configfiles/bookmarks.html på ``brave://bookmarks``
@@ -81,39 +75,49 @@ Kjør driverinstallasjon med NVCleanstall
 - Extensions:
     - Installer Caffeine
     - Bookmarks: sett til brave path
-    - Explorer: sett opp everything. Hvis man prøver et søk blir man promptet til å installere.
+    - Explorer: sett opp søk med everything
 
 #### Git:
 - ssh key for GitHub, hent fra Bitwarden
 
 #### Div. Windows setup
 - logg inn med personlig- og skolekonto
-- onedrive
 - basic innstillinger -> personalisering
-- uncheck startup apps
+- check/uncheck startup apps
 - sett default apps
     - faststone for bilder
     - mpv for video
     - sumatra for PDF
     - brave som nettleser
+- onedrive login/oppsett
 
 ## Til neste gang jeg oppdaterer denne:
 - lag en Flow Launcher config som kan automatisk importeres
 
 
 TODO:
-slette søppel i onedrive/documents før reinstallasjon, så det ikke ødelegger når onedrive lastes ned
-legg til et steg som alene godkjenner om man vil installere Microsoft.OneDrive med winget
+- slette søppel i onedrive/documents før reinstallasjon, så det ikke ødelegger når onedrive lastes ned
+- undersøk om terminal config om den er grei
+- undersøk vscode config, hva som kan spares på (autosave, telemetry?)
+- installere dark cursom?
 
+prompt:
+holder på å lage et powershell script for å automatisere oppsett av en fresh widows installasjon. Her er nåværende script vedlagt.
 
-Feil fra testkjøring:
+er flere endringer jeg ønsker å gjøre. Først, her er feil jeg støtte på etter å ha kjørt scriptet i en ny windows VM:
 - 7 zip feilet (stod cancelled, selv om jeg ikke kansellerte) (exit code -2147467260)
-- spotify kan ikke lastes ned fra admin, fikk error
-- ved reload av path før python install kom det en lang melding om for lang path/for mange characters i path elns. Men alt så til å funke og python ble installert. Vet du hva det kan være? 
+- spotify kan ikke lastes ned som admin, fikk error
+- ved reload av path før python install kom det en lang melding om for lang path/for mange characters i path elns. Men alt så til å funke og python ble installert. Vet du hva det kan være? Ser at både py install og py install --configure ligger inne, trengs det?
 - vindu lukkes med en gang det er ferdig, vil at det stopper på slutten og holder vinduet åpent, så man faktisk kan lese prints på slutten og lukke vindu når man vil
-- milennium kopier mappe funket ikke. Roll back til å laste ned installer til downloads. Kan 
-- la flow launcher installere everything, i stedet for å ha i winget
+Resten funket (utenom millennium, men det skal fjernes uansett). 
 
-fjern døde profiler fra terminal config, fjern alt utenom powershell 7 & 5, og cmd
+Her er andre endringer jeg har lyst til å gjøre:
 
-microwin fjernet ingen bloat apps, test tiny11 heller
+- fjern alt av STEG NR, vil fortsatt at hver del skal ha en prompt med y/n, men ikke ha dem som nummererte steg
+- gjør j/n til y/n
+- ha en prompt rundt installering av alle winget programmene
+- skal laste ned mpv med winget (jeg legger inn pakken i ekstern fil, winget steget tar seg av denne automatisk nå) så den kan fjernes fra manuell delen. Men vil ha et steg som legger inn configen fra dette repoet: https://github.com/Zabooby/mpv-config her vil jeg at alle filene inni portable_config mappen blir flyttet til %APPDATA%/mpv. Finn en god løsning på dette
+- skal også laste ned BCUninstaller, yt-dlp, g-helper, ente auth med winget, fjern fra manuell. Legger også disse inn i packages filen selv, så winget steget tar nå hånd om dem. skal bare være fileconverter, m365 og appene fra ms store som skal være igjen som manuelle installasjoner
+- fjern alt av millennium greier, vil ikke ha det 
+
+se om scriptet har rot eller gjør unødvendige ting, lager unødvendige filer eller snarveier, er uoversiktlig. Rydd opp i det.

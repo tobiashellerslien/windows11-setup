@@ -18,7 +18,11 @@
   { "Id": "Obsidian.Obsidian" },
   { "Id": "SumatraPDF.SumatraPDF" },
   { "Id": "Surfshark.Surfshark" },
-  { "Id": "Devolutions.UniGetUI" },
   { "Id": "PrismLauncher.PrismLauncher" },
-  { "Id": "Fastfetch-cli.Fastfetch" }
+  { "Id": "Fastfetch-cli.Fastfetch" },
+  { "Id": "Microsoft.OneDrive" },
+  { "Id": "yt-dlp.yt-dlp.nightly" },
+  { "Id": "shinchiro.mpv" },
+  { "Id": "seerge.g-helper" },
+  { "Id": "ente-io.auth-desktop" }
 ]
