@@ -16,7 +16,7 @@
 [CmdletBinding()]
 param(
     [string]$PackagesJson = (Join-Path $PSScriptRoot 'packages.json'),
-    [string]$ProfileSource = (Join-Path $PSScriptRoot 'Microsoft.PowerShell_profile.ps1'),
+    [string]$ProfileSource = (Join-Path $PSScriptRoot 'configfiles\Microsoft.PowerShell_profile.ps1'),
     [string]$ToolsDir     = 'C:\Tools',
     [string]$SteamDir     = 'C:\Program Files (x86)\Steam',
     [string]$MillenniumZip = (Join-Path $PSScriptRoot 'configfiles\millennium.zip'),
