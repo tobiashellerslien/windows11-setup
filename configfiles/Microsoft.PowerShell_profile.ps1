@@ -1,16 +1,5 @@
-### PowerShell-profil
-### Utgangspunkt: Chris Titus Tech sin profil (https://github.com/ChrisTitusTech/powershell-profile)
-### Tilpasset: ingen auto-oppdatering fra hans repo, ingen separat custom-fil - alt redigeres direkte her.
-
-function Enable-Tls12 {
-    try {
-        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-    } catch {
-        Write-Verbose "Unable to enable TLS 1.2 explicitly: $_"
-    }
-}
-
-Enable-Tls12
+### Personlig PowerShell-profil
+### Opprinnelig basert på Chris Titus sin profil.
 
 function Test-InteractiveShell {
     try {
@@ -37,83 +26,8 @@ function Test-Command {
     $null -ne (Get-Command -Name $Name -ErrorAction SilentlyContinue)
 }
 
-function Save-UriToFile {
-    param(
-        [Parameter(Mandatory)][string]$Uri,
-        [Parameter(Mandatory)][string]$OutFile
-    )
-
-    $client = New-Object System.Net.WebClient
-    try {
-        $client.DownloadFile($Uri, $OutFile)
-    } finally {
-        $client.Dispose()
-    }
-}
-
-function Get-UriContent {
-    param([Parameter(Mandatory)][string]$Uri)
-
-    $client = New-Object System.Net.WebClient
-    try {
-        $client.DownloadString($Uri)
-    } finally {
-        $client.Dispose()
-    }
-}
-
 $isInteractiveShell = Test-InteractiveShell
 $profileDir = Get-ProfileDir
-
-function Update-PowerShell {
-    [CmdletBinding(SupportsShouldProcess)]
-    param()
-
-    if (-not (Test-Command winget)) {
-        Write-Warning 'winget is required to update PowerShell automatically.'
-        return
-    }
-
-    try {
-        $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/PowerShell/PowerShell/releases/latest' -ErrorAction Stop
-        $currentVersion = [version]$PSVersionTable.PSVersion
-        $latestVersion = [version]($release.tag_name -replace '^v', '')
-
-        if ($currentVersion -ge $latestVersion) {
-            Write-Host "PowerShell $currentVersion is up to date." -ForegroundColor Green
-            return
-        }
-
-        if ($PSCmdlet.ShouldProcess("PowerShell $currentVersion", "Upgrade to $latestVersion")) {
-            winget upgrade --id Microsoft.PowerShell --exact --accept-source-agreements --accept-package-agreements
-            if ($LASTEXITCODE -ne 0) {
-                Write-Error "winget failed to update PowerShell. Exit code: $LASTEXITCODE"
-                return
-            }
-            Write-Host 'PowerShell has been updated. Restart your shell to use the new version.' -ForegroundColor Magenta
-        }
-    } catch {
-        Write-Error "Failed to update PowerShell. Error: $_"
-    }
-}
-
-function Clear-Cache {
-    [CmdletBinding(SupportsShouldProcess)]
-    param()
-
-    $paths = @(
-        "$env:SystemRoot\Prefetch\*",
-        "$env:SystemRoot\Temp\*",
-        "$env:TEMP\*",
-        "$env:LOCALAPPDATA\Microsoft\Windows\INetCache\*"
-    )
-
-    foreach ($path in $paths) {
-        if ($PSCmdlet.ShouldProcess($path, 'Remove cached files')) {
-            Remove-Item -Path $path -Recurse -Force -ErrorAction SilentlyContinue
-        }
-    }
-}
 
 function Initialize-OptionalModule {
     if (-not $isInteractiveShell) {
@@ -125,33 +39,11 @@ function Initialize-OptionalModule {
     } else {
         Write-Warning 'Terminal-Icons module is not installed. Run Setup-Windows.ps1 to install dependencies.'
     }
-
-    $chocolateyProfile = if ($env:ChocolateyInstall) {
-        Join-Path $env:ChocolateyInstall 'helpers\chocolateyProfile.psm1'
-    } else {
-        $null
-    }
-
-    if ($chocolateyProfile -and (Test-Path -Path $chocolateyProfile -PathType Leaf)) {
-        Import-Module $chocolateyProfile -ErrorAction SilentlyContinue
-    }
-}
-
-function Resolve-Editor {
-    foreach ($candidate in 'nvim', 'pvim', 'vim', 'vi', 'code', 'codium', 'notepad++', 'sublime_text') {
-        if (Test-Command $candidate) {
-            return $candidate
-        }
-    }
-
-    return 'notepad'
 }
 
 Initialize-OptionalModule
 
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-$EDITOR = Resolve-Editor
-Set-Alias -Name vim -Value $EDITOR -Force
 
 if ($isInteractiveShell) {
     try {
@@ -165,15 +57,6 @@ if ($isInteractiveShell) {
 function prompt {
     $marker = if ($isAdmin) { '#' } else { '$' }
     "[$(Get-Location)] $marker "
-}
-
-function Edit-Profile {
-    & $EDITOR $PROFILE.CurrentUserAllHosts
-}
-Set-Alias -Name ep -Value Edit-Profile -Force
-
-function Invoke-Profile {
-    . $PROFILE.CurrentUserCurrentHost
 }
 
 function touch {
@@ -198,15 +81,11 @@ function ff {
 }
 
 function pubip {
-    (Get-UriContent -Uri 'https://ifconfig.me/ip').Trim()
+    (Invoke-RestMethod -Uri 'https://ifconfig.me/ip').Trim()
 }
 
 function winutil {
     & ([ScriptBlock]::Create((Invoke-RestMethod -Uri 'https://christitus.com/win'))) @args
-}
-
-function winutildev {
-    & ([ScriptBlock]::Create((Invoke-RestMethod -Uri 'https://christitus.com/windev'))) @args
 }
 
 function admin {
@@ -368,7 +247,7 @@ function la { Get-ChildItem | Format-Table -AutoSize }
 function ll { Get-ChildItem -Force | Format-Table -AutoSize }
 function gs { git status }
 function ga { git add . }
-function gc { git commit -m ($args -join ' ') }
+function gcommit { git commit -m ($args -join ' ') }
 function gpush { git push @args }
 function gpull { git pull @args }
 function gcl { git clone @args }
@@ -430,19 +309,6 @@ function Set-PSReadLineOptionsCompat {
     }
 }
 
-function Set-PredictionSource {
-    [CmdletBinding(SupportsShouldProcess)]
-    param()
-
-    if ($PSCmdlet.ShouldProcess('PSReadLine', 'Set prediction source')) {
-        if ($PSVersionTable.PSEdition -eq 'Core') {
-            Set-PSReadLineOption -PredictionSource HistoryAndPlugin
-        }
-
-        Set-PSReadLineOption -MaximumHistoryCount 10000
-    }
-}
-
 function Initialize-PSReadLine {
     if (-not $isInteractiveShell -or -not (Get-Module -ListAvailable -Name PSReadLine)) {
         return
@@ -454,6 +320,7 @@ function Initialize-PSReadLine {
         HistorySearchCursorMovesToEnd = $true
         PredictionSource           = 'History'
         PredictionViewStyle        = 'ListView'
+        MaximumHistoryCount        = 10000
         BellStyle                  = 'None'
         Colors                     = @{
             Command   = '#87CEEB'
@@ -486,41 +353,6 @@ function Initialize-PSReadLine {
         $line -notmatch '(?i)(password|secret|token|apikey|connectionstring)'
     }
 
-    Set-PredictionSource
-}
-
-function Register-CustomCompletion {
-    if (-not $isInteractiveShell) {
-        return
-    }
-
-    $completionMap = @{
-        git  = @('status', 'add', 'commit', 'push', 'pull', 'clone', 'checkout')
-        npm  = @('install', 'start', 'run', 'test', 'build')
-        deno = @('run', 'compile', 'bundle', 'test', 'lint', 'fmt', 'cache', 'info', 'doc', 'upgrade')
-    }
-
-    Register-ArgumentCompleter -Native -CommandName git, npm, deno -ScriptBlock {
-        param($wordToComplete, $commandAst, $cursorPosition)
-        $null = $cursorPosition
-        $completionWord = $wordToComplete
-        $map = $completionMap
-        $command = $commandAst.CommandElements[0].Value
-        if ($map.ContainsKey($command)) {
-            $map[$command] |
-                Where-Object { $_ -like "$completionWord*" } |
-                ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
-        }
-    }.GetNewClosure()
-
-    if (Test-Command dotnet) {
-        Register-ArgumentCompleter -Native -CommandName dotnet -ScriptBlock {
-            param($wordToComplete, $commandAst, $cursorPosition)
-            $null = $wordToComplete
-            dotnet complete --position $cursorPosition $commandAst.ToString() |
-                ForEach-Object { [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_) }
-        }
-    }
 }
 
 function Resolve-OhMyPoshTheme {
@@ -575,11 +407,6 @@ function Show-Help {
 PowerShell Profile Help
 =======================
 
-Profile:
-  Edit-Profile      Open the current user's all-hosts profile for editing.
-  Invoke-Profile    Reload this profile in the current session.
-  Update-PowerShell Check for the latest PowerShell release and update with winget.
-
 Python:
   ve [path]         Activate a Python venv (defaults to .\.venv\Scripts\Activate.ps1).
 
@@ -614,14 +441,13 @@ Shortcuts:
   uptime            Show system uptime.
   which <name>      Show command path.
   winutil           Run the latest WinUtil release script.
-  winutildev        Run the latest WinUtil prerelease script.
 '@ | Write-Host
 }
 
 Set-Alias -Name gp -Value gpush -Force
+Set-Alias -Name gc -Value gcommit -Force
 
 Initialize-PSReadLine
-Register-CustomCompletion
 Initialize-PromptTool
 
 if ($isInteractiveShell) {
