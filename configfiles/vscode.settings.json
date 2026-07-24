@@ -4,5 +4,9 @@
     "telemetry.telemetryLevel": "off",
     "editor.unicodeHighlight.nonBasicASCII": false,
     "workbench.colorTheme": "Default Dark Modern",
-    "workbench.iconTheme": "material-icon-theme"
+    "workbench.iconTheme": "material-icon-theme",
+    "update.showReleaseNotes": false,
+    "workbench.secondarySideBar.defaultVisibility": "hidden",
+    "git.confirmSync": false,
+    "git.enableSmartCommit": true
 }

@@ -20,6 +20,7 @@ $packagesJson = Join-Path $PSScriptRoot 'packages.json'
 $profileSource = Join-Path $PSScriptRoot 'configfiles\Microsoft.PowerShell_profile.ps1'
 $terminalSettingsSource = Join-Path $PSScriptRoot 'configfiles\terminal.settings.json'
 $vscodeSettingsSource = Join-Path $PSScriptRoot 'configfiles\vscode.settings.json'
+$flowLauncherArchive = Join-Path $PSScriptRoot 'configfiles\FlowLauncher.zip'
 $script:WingetFailures = [System.Collections.Generic.List[string]]::new()
 $script:SectionFailures = [System.Collections.Generic.List[string]]::new()
 
@@ -263,18 +264,16 @@ function Install-WingetPackage {
         '--accept-package-agreements', '--accept-source-agreements',
         '--silent', '--disable-interactivity'
     )
-    if ($Package.Scope) {
-        $arguments += @('--scope', [string]$Package.Scope)
-    }
-    if ($Package.InstallerType) {
-        $arguments += @('--installer-type', [string]$Package.InstallerType)
-    }
-
     $exitCode = 0
     foreach ($attempt in 1..2) {
         Write-Host "Installerer $displayName ..."
-        & winget @arguments | Out-Host
-        $exitCode = $LASTEXITCODE
+        $wingetProcess = Start-Process `
+            -FilePath (Get-Command winget).Source `
+            -ArgumentList $arguments `
+            -NoNewWindow `
+            -Wait `
+            -PassThru
+        $exitCode = $wingetProcess.ExitCode
         if ($exitCode -eq 0 -or (Test-WingetPackageInstalled -Id $id)) {
             Write-Host "$displayName er installert." -ForegroundColor Green
             return $true
@@ -351,56 +350,33 @@ function Get-InstalledFontNames {
 }
 
 function Install-NerdFont {
-    $fontDisplayName = 'JetBrainsMono Nerd Font'
-    if ((Get-InstalledFontNames) -contains $fontDisplayName) {
-        Write-Host "$fontDisplayName er allerede installert." -ForegroundColor DarkGray
+    $installedFont = Get-InstalledFontNames |
+        Where-Object { $_ -like 'JetBrainsMono Nerd Font*' -or $_ -like 'JetBrainsMono NF*' } |
+        Select-Object -First 1
+    if ($installedFont) {
+        Write-Host "$installedFont er allerede installert." -ForegroundColor DarkGray
         return
     }
 
-    $tempDirectory = Join-Path ([IO.Path]::GetTempPath()) ("nerd-font-{0}" -f [guid]::NewGuid())
-    $zipPath = Join-Path $tempDirectory 'JetBrainsMono.zip'
-    $extractPath = Join-Path $tempDirectory 'files'
-    Ensure-Directory -Path $tempDirectory
-
-    try {
-        Invoke-WebRequest `
-            -Uri 'https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/JetBrainsMono.zip' `
-            -OutFile $zipPath
-        Expand-Archive -LiteralPath $zipPath -DestinationPath $extractPath -Force
-
-        $fontShellFolder = (New-Object -ComObject Shell.Application).Namespace(0x14)
-        if (-not $fontShellFolder) {
-            throw 'Klarte ikke åpne Windows Fonts-mappa.'
+    Sync-EnvironmentPath
+    $ohMyPosh = Get-Command oh-my-posh -ErrorAction SilentlyContinue
+    if (-not $ohMyPosh) {
+        $package = [pscustomobject]@{ Id = 'JanDeDobbeleer.OhMyPosh' }
+        if (-not (Install-WingetPackage -Package $package)) {
+            throw 'Klarte ikke installere Oh My Posh, som brukes til fontinstallasjonen.'
         }
-
-        $pendingFontPaths = [System.Collections.Generic.List[string]]::new()
-        Get-ChildItem -LiteralPath $extractPath -Recurse -File |
-            Where-Object Extension -in '.ttf', '.otf' |
-            ForEach-Object {
-                $installedPath = Join-Path "$env:WINDIR\Fonts" $_.Name
-                if (-not (Test-Path -LiteralPath $installedPath)) {
-                    $fontShellFolder.CopyHere($_.FullName, 0x10)
-                    [void]$pendingFontPaths.Add($installedPath)
-                }
-            }
-
-        # Shell.Application kopierer asynkront. Vent til filene finnes før temp-mappa slettes.
-        foreach ($installedPath in $pendingFontPaths) {
-            foreach ($attempt in 1..50) {
-                if (Test-Path -LiteralPath $installedPath) {
-                    break
-                }
-                Start-Sleep -Milliseconds 100
-            }
-            if (-not (Test-Path -LiteralPath $installedPath)) {
-                throw "Fontkopieringen fullførte ikke: $installedPath"
-            }
-        }
-
-        Write-Host "$fontDisplayName er installert." -ForegroundColor Green
-    } finally {
-        Remove-Item -LiteralPath $tempDirectory -Recurse -Force -ErrorAction SilentlyContinue
+        Sync-EnvironmentPath
+        $ohMyPosh = Get-Command oh-my-posh -ErrorAction SilentlyContinue
     }
+    if (-not $ohMyPosh) {
+        throw "Fant ikke 'oh-my-posh' etter installasjonen."
+    }
+
+    & $ohMyPosh.Source font install JetBrainsMono
+    if ($LASTEXITCODE -ne 0) {
+        throw "Installasjon av JetBrainsMono Nerd Font feilet med exit code $(Format-NativeExitCode -ExitCode $LASTEXITCODE)."
+    }
+    Write-Host 'JetBrainsMono Nerd Font er installert.' -ForegroundColor Green
 }
 
 function Install-TerminalIconsModule {
@@ -440,7 +416,7 @@ function Set-BravePolicies {
         New-ItemProperty -Path $policyPath -Name $policy.Key -Value $policy.Value -PropertyType DWord -Force | Out-Null
     }
     New-ItemProperty -Path $policyPath -Name DnsOverHttpsMode -Value 'secure' -PropertyType String -Force | Out-Null
-    New-ItemProperty -Path $policyPath -Name DnsOverHttpsTemplates -Value 'https://dns.adguard-dns.com/dns-query' -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $policyPath -Name DnsOverHttpsTemplates -Value 'https://family.adguard-dns.com/dns-query' -PropertyType String -Force | Out-Null
 
     $extensionPath = Join-Path $policyPath 'ExtensionInstallForcelist'
     New-Item -Path $extensionPath -Force | Out-Null
@@ -465,6 +441,94 @@ function Set-BravePolicies {
     }
 
     Write-Host 'Brave-policyer og utvidelser er konfigurert.' -ForegroundColor Green
+}
+
+function Remove-GitShellContextMenus {
+    $registryPaths = @(
+        'Registry::HKEY_CLASSES_ROOT\Directory\Background\shell\git_gui'
+        'Registry::HKEY_CLASSES_ROOT\Directory\Background\shell\git_shell'
+    )
+    $removed = $false
+    foreach ($registryPath in $registryPaths) {
+        if (Test-Path -LiteralPath $registryPath) {
+            Remove-Item -LiteralPath $registryPath -Recurse -Force
+            $removed = $true
+        }
+    }
+
+    if ($removed) {
+        Write-Host 'Git GUI og Git Bash er fjernet fra Explorer-menyen.' -ForegroundColor Green
+    } else {
+        Write-Host 'Git GUI og Git Bash finnes ikke i Explorer-menyen.' -ForegroundColor DarkGray
+    }
+}
+
+function Set-ExplorerStartFolder {
+    $explorerPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
+    New-Item -Path $explorerPath -Force | Out-Null
+    $currentValue = (Get-ItemProperty -Path $explorerPath -Name LaunchTo -ErrorAction SilentlyContinue).LaunchTo
+    if ($currentValue -eq 3) {
+        Write-Host 'File Explorer åpner allerede Downloads.' -ForegroundColor DarkGray
+        return
+    }
+
+    New-ItemProperty -Path $explorerPath -Name LaunchTo -Value 3 -PropertyType DWord -Force | Out-Null
+    Write-Host 'File Explorer er satt til å åpne Downloads.' -ForegroundColor Green
+}
+
+function Install-FlowLauncherConfig {
+    param([Parameter(Mandatory)][string]$ArchivePath)
+
+    if (-not (Test-Path -LiteralPath $ArchivePath -PathType Leaf)) {
+        throw "Fant ikke Flow Launcher-arkivet: $ArchivePath"
+    }
+
+    $tempDirectory = Join-Path ([IO.Path]::GetTempPath()) ("flow-launcher-{0}" -f [guid]::NewGuid())
+    $extractPath = Join-Path $tempDirectory 'files'
+    Ensure-Directory -Path $tempDirectory
+
+    try {
+        Expand-Archive -LiteralPath $ArchivePath -DestinationPath $extractPath -Force
+        $persistentDirectories = @('Settings', 'Plugins', 'Themes')
+        foreach ($directoryName in $persistentDirectories) {
+            $sourcePath = Join-Path $extractPath $directoryName
+            if (-not (Test-Path -LiteralPath $sourcePath -PathType Container)) {
+                throw "Flow Launcher-arkivet mangler mappa '$directoryName'."
+            }
+        }
+
+        $destinationRoot = Join-Path $env:APPDATA 'FlowLauncher'
+        $needsUpdate = $false
+        foreach ($directoryName in $persistentDirectories) {
+            if (-not (Test-DirectoryContentEqual `
+                    -SourcePath (Join-Path $extractPath $directoryName) `
+                    -DestinationPath (Join-Path $destinationRoot $directoryName))) {
+                $needsUpdate = $true
+                break
+            }
+        }
+        if (-not $needsUpdate) {
+            Write-Host 'Flow Launcher-konfigurasjonen er allerede oppdatert.' -ForegroundColor DarkGray
+            return
+        }
+
+        $flowProcesses = @(Get-Process -Name 'Flow.Launcher' -ErrorAction SilentlyContinue)
+        if ($flowProcesses.Count -gt 0) {
+            $flowProcesses | Stop-Process -Force
+            Write-Host 'Flow Launcher ble lukket før konfigurasjonen ble installert.' -ForegroundColor DarkGray
+        }
+
+        Ensure-Directory -Path $destinationRoot
+        foreach ($directoryName in $persistentDirectories) {
+            Install-ConfigDirectory `
+                -SourcePath (Join-Path $extractPath $directoryName) `
+                -DestinationPath (Join-Path $destinationRoot $directoryName) `
+                -Description "Flow Launcher $directoryName" `
+                -BackupPrefix $directoryName
+        }
+    } finally {
+        Remove-Item -LiteralPath $tempDirectory -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function Install-TerminalSettings {
@@ -609,9 +673,14 @@ function Install-MpvConfig {
 
 Invoke-Section -Message "`nInstallere alle programmer fra packages.json med winget?" -Action {
     Write-Host "`n=== Winget-programmer ===" -ForegroundColor Magenta
-    & winget source update --disable-interactivity | Out-Host
-    if ($LASTEXITCODE -ne 0) {
-        Write-Warning "Oppdatering av winget-kilder feilet med exit code $(Format-NativeExitCode -ExitCode $LASTEXITCODE). Fortsetter med eksisterende kilder."
+    $sourceUpdateProcess = Start-Process `
+        -FilePath (Get-Command winget).Source `
+        -ArgumentList @('source', 'update', '--disable-interactivity') `
+        -NoNewWindow `
+        -Wait `
+        -PassThru
+    if ($sourceUpdateProcess.ExitCode -ne 0) {
+        Write-Warning "Oppdatering av winget-kilder feilet med exit code $(Format-NativeExitCode -ExitCode $sourceUpdateProcess.ExitCode). Fortsetter med eksisterende kilder."
     }
     Install-WingetPackages -JsonPath $packagesJson
     Sync-EnvironmentPath
@@ -666,6 +735,7 @@ Invoke-Section -Message "`nSette opp global Git-konfigurasjon (navn og e-post)?"
     }
     Write-Host "  Navn: $savedName"
     Write-Host "  E-post: $savedEmail"
+    Remove-GitShellContextMenus
 }
 
 Invoke-Section -Message "`nKonfigurere Brave og installere Bitwarden, Surfshark, Unhook og SponsorBlock via policy?" -Action {
@@ -673,7 +743,12 @@ Invoke-Section -Message "`nKonfigurere Brave og installere Bitwarden, Surfshark,
     Set-BravePolicies
 }
 
-Invoke-Section -Message "`nSette opp PowerShell med Oh My Posh, zoxide, Terminal-Icons, Nerd Font og profil?" -Action {
+Invoke-Section -Message "`nSette File Explorer til å åpne Downloads?" -Action {
+    Write-Host "`n=== File Explorer ===" -ForegroundColor Magenta
+    Set-ExplorerStartFolder
+}
+
+Invoke-Section -Message "`nSette opp PowerShell med Oh My Posh, zoxide, Terminal-Icons og profil?" -Action {
     Write-Host "`n=== PowerShell-oppsett ===" -ForegroundColor Magenta
     $dependencies = @(
         [pscustomobject]@{ Id = 'JanDeDobbeleer.OhMyPosh' }
@@ -687,7 +762,6 @@ Invoke-Section -Message "`nSette opp PowerShell med Oh My Posh, zoxide, Terminal
 
     Sync-EnvironmentPath
     Install-OhMyPoshTheme
-    Install-NerdFont
     Install-TerminalIconsModule
     Install-ConfigFile `
         -SourcePath $profileSource `
@@ -696,9 +770,19 @@ Invoke-Section -Message "`nSette opp PowerShell med Oh My Posh, zoxide, Terminal
         -BackupPrefix 'profile'
 }
 
+Invoke-Section -Message "`nInstallere JetBrainsMono Nerd Font med Oh My Posh?" -Action {
+    Write-Host "`n=== Nerd Font ===" -ForegroundColor Magenta
+    Install-NerdFont
+}
+
 Invoke-Section -Message "`nInstallere innstillingene for Windows Terminal?" -Action {
     Write-Host "`n=== Windows Terminal ===" -ForegroundColor Magenta
     Install-TerminalSettings -SourcePath $terminalSettingsSource
+}
+
+Invoke-Section -Message "`nInstallere Flow Launcher-innstillinger, plugins og temaer?" -Action {
+    Write-Host "`n=== Flow Launcher ===" -ForegroundColor Magenta
+    Install-FlowLauncherConfig -ArchivePath $flowLauncherArchive
 }
 
 Invoke-Section -Message "`nInstallere VS Code-innstillinger og Material Icon Theme?" -Action {
@@ -724,10 +808,6 @@ if ($script:WingetFailures.Count -gt 0) {
 if ($script:SectionFailures.Count -gt 0) {
     Write-Warning "Deler som feilet: $($script:SectionFailures -join '; ')"
 }
-
-Write-Host "`nManuelle installasjoner som gjenstår:" -ForegroundColor Cyan
-Write-Host '- Spotify: https://www.spotify.com/download/windows/, eller winget install Spotify.Spotify (ikke som administrator)'
-Write-Host '- Goodnotes og MagicPods fra Microsoft Store'
 
 if (-not $NoPause) {
     [void](Read-Host "`nTrykk Enter når du vil lukke vinduet")

@@ -1,131 +1,96 @@
-# Tobias' Windows 11 setup script og guide
+# Tobias' Windows 11-oppsett
 
-## Steg for steg for å sette opp en fresh windows installasjon
+## 0. Lag Windows 11-ISO
 
-### 0. Lag Win11 ISO
+- Last ned Windows 11 fra [Microsoft](https://www.microsoft.com/nb-no/software-download/windows11) med språk Engelsk (USA).
+- Bygg ISO-en med Chris Titus WinUtil:
 
-- Last ned fra [Microsoft](https://www.microsoft.com/nb-no/software-download/windows11) (språk: Engelsk (USA)).
-- Bruk [MicroWin](https://github.com/CodingWonders/MicroWin) til å lage ISO.
-- Flash USB med [Rufus](https://rufus.ie/en/). Rufus sine ISO innstillinger er ikke nødvendig etter ISO allerede er modifisert.
-
-### 1. Drivere
-Last ned fra [ASUS](https://www.asus.com/supportonly/ga503qm/helpdesk_download/).
-Tar NVIDIA GPU drivere med NVCleanstall senere.
-
-### 2. Windows Update
-Gå inn på innstillinger og installer tilgjengelige oppdateringer.
-
-### 3. Chris Titus WinUtil
-
-Kjør anbefalte tweaks med WinUtil. 
 ```powershell
 irm https://christitus.com/win | iex
 ```
-Kan også sette custom DNS, classic contex menu, right click end task m.m.
 
-### 4. Kjør powershell script for å installere programmer
+- Flash ISO-en med [Rufus](https://rufus.ie/en/).
 
-En fersk Windows 11-installasjon har vanligvis Winget, men ikke Git eller PowerShell 7. Kontroller først at `winget --version` fungerer. Hvis ikke, oppdater **App Installer** fra Microsoft Store.
+## 1. Drivere og oppdateringer
 
-Gjør deretter dette i to deler:
+- Last ned drivere fra [ASUS](https://www.asus.com/supportonly/ga503qm/helpdesk_download/).
+- Installer alle Windows Update-oppdateringer.
 
-**A) I vanlig Windows PowerShell (5.1):**
+## 2. Windows-justeringer
+
+- Kjør Chris Titus WinUtil og bruk anbefalte tweaks.
+- Kjør O&O ShutUp10++ med anbefalte innstillinger.
+    - Behold password reveal-knappen og skru av Game Bar.
+
+```powershell
+irm https://christitus.com/win | iex
+```
+
+## 3. Kjør setup-scriptet
+
+Kontroller at `winget --version` fungerer. Oppdater ellers **App Installer** fra Microsoft Store.
+
+Kjør først i Windows PowerShell 5.1:
 
 ```powershell
 winget install Microsoft.PowerShell Git.Git
 ```
-Lukk terminalvinduet etter installasjonen, slik at neste terminal får oppdatert `PATH`.
 
-**B) Åpne en ny terminal:**
+Lukk terminalen, åpne en ny og kjør:
 
 ```powershell
 git clone https://github.com/tobiashellerslien/windows11-setup.git
 cd windows11-setup
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\Setup-Windows.ps1
+pwsh .\Setup-Windows.ps1
 ```
 
-`-ExecutionPolicy Bypass` gjelder bare denne PowerShell-prosessen. Scriptet ber selv om administratorrettigheter når det starter.
+Scriptet ber om administratorrettigheter og `y/n` før hver del. Det kan kjøres flere ganger, installerte pakker og identisk config hoppes over, mens endret config sikkerhetskopieres.
 
-Scriptet ber om `y/n` før hver del og setter opp:
+## 4. Manuelle installasjoner
 
-- Programmer fra `packages.json` med winget.
-- Global Git-konfigurasjon.
-- Brave-debloat.
-- PowerShell, Windows Terminal og VS Code config. Terminal må ha vært åpnet minst én gang.
-- Nyeste stabile Python.
-- mpv-konfigurasjon.
+- [Spotify](https://www.spotify.com/download/windows/), eller `winget install Spotify.Spotify` uten administratorrettigheter.
+- GoodNotes og MagicPods fra Microsoft Store.
+- Microsoft 365/Office fra [m365.cloud.microsoft/apps](https://m365.cloud.microsoft/apps).
 
-Vinduet blir stående åpent til du trykker Enter.
+## 5. Manuelt oppsett
 
-#### Gjentatt kjøring og backup
+### Brave
 
-Scriptet kan kjøres flere ganger. Installerte programmer og uendrede filer hoppes over. Endrede konfigurasjonsfiler får en tidsstemplet backup før de erstattes; for mpv sikkerhetskopieres hele den gamle mappen. Gamle backuper slettes ikke automatisk.
+- Sett som standard nettleser
+- Kom i gang → importer `configfiles/bookmarks.html` via `brave://bookmarks`.
+- Kom i gang → Ved oppstart → Ny fane.
+- Utseende → vis startsideknappen.
+- Utseende → bruk bred adresselinje.
 
-#### Manuelle installasjoner som gjenstår:
+### G-Helper
 
-- Spotify fra [spotify.com/download/windows](https://www.spotify.com/download/windows/), eller med winget install Spotify.Spotify (ikke som administrator)
-- GoodNotes og MagicPods (Microsoft Store)
+Start med Windows, åpne med ASUS ROG-knappen, gå gjennom innstillingene.
 
-### 5. Diverse oppsett:
+### SSH-nøkkel for GitHub
 
-#### NVIDIA Drivere
-Kjør driverinstallasjon med NVCleanstall.
-
-#### G-helper
-Sett opp til å starte med PC-en og åpne med ASUS ROG knapp. Gå gjennom innstillinger.
-
-#### Brave Browser:
-Importer bokmerker fra configfiles/bookmarks.html på ``brave://bookmarks``.
-
-#### Flow Launcher:
-- Font: Jetbrains Mono
-- Gå gjennom settings
-- Appearance:
-    - Windows 11 + Acrylic
-    - Skru av klokke
-- Extensions:
-    - Installer Caffeine
-    - Bookmarks: sett til brave path
-    - Explorer: sett opp søk med everything
-
-#### SSH key for GitHub:
-
-1. Opprett `%USERPROFILE%\.ssh` og lagre nøklene fra Bitwarden som `github` (privat) og `github.pub` (offentlig). Behold linjeskiftene i privatnøkkelen.
-2. Kjør PowerShell som administrator:
+1. Opprett `%USERPROFILE%\.ssh` og lagre nøklene fra Bitwarden som `github` og `github.pub`.
+2. Kjør som administrator:
 
 ```powershell
 Set-Service ssh-agent -StartupType Automatic
 Start-Service ssh-agent
 ```
-3. Kjør i powershell uten administrator:
+
+3. Kjør uten administratorrettigheter:
+
 ```powershell
 ssh-add "$env:USERPROFILE\.ssh\github"
-```
-
-4. Test tilkoblingen og svar `yes` hvis GitHub spør om verten skal godkjennes:
-
-```powershell
 ssh -T git@github.com
 ```
 
-En melding med GitHub-brukernavnet ditt bekrefter at autentiseringen virker.
+### Øvrig
 
-#### Div. Windows setup
-
-- logg inn med personlig- og skolekonto
-- innstillinger -> personalisering
-- check/uncheck startup apps
-- sett default apps
-    - brave som nettleser
+- Logg inn med personlig konto og skolekonto.
+- Kontroller oppstartsapper og personalisering.
+- Sett standard apper:
     - FastStone for bilder
         - `.jpg`, `.jpeg`, `.png`, `.webp`, `.avif`, `.heic`, `.gif`, `.bmp`, `.ico`
     - mpv for video
         - `.mp4`, `.mkv`, `.webm`, `.mov`, `.avi`, `.m4v`, `.mpeg`, `.mpg`
-    - sumatra for PDF
-- onedrive login/oppsett
-- logge inn på alle andre apper og gjøre div. oppsett der. For mye for å kunne liste opp alt, men ta det som det kommer.
-
-## Til neste gang jeg oppdaterer denne
-
-- lag en Flow Launcher config som kan automatisk importeres
-- slette søppel i onedrive/documents før reinstallasjon, så det ikke ødelegger når onedrive lastes ned
+    - Sumatra for PDF
+- Sett opp OneDrive og logg inn i øvrige apper.

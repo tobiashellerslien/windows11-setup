@@ -5,86 +5,214 @@
     "copyOnSelect": true,
     "defaultProfile": "{574e775e-4f2a-5b96-ac1e-a2962a402336}",
     "firstWindowPreference": "defaultProfile",
-    "keybindings": 
+    "actions":
     [
         {
-            "id": "Terminal.ToggleCommandPalette",
+            "command": "commandPalette",
+            "id": "User.CommandPalette"
+        },
+        {
+            "command":
+            {
+                "action": "splitPane",
+                "split": "auto",
+                "splitMode": "duplicate"
+            },
+            "id": "User.DuplicatePaneAuto"
+        },
+        {
+            "command":
+            {
+                "action": "copy",
+                "singleLine": false
+            },
+            "id": "User.Copy"
+        },
+        {
+            "command":
+            {
+                "action": "splitPane",
+                "split": "down"
+            },
+            "id": "User.SplitPaneDown"
+        },
+        {
+            "command": "newTab",
+            "id": "User.NewTab"
+        },
+        {
+            "command":
+            {
+                "action": "splitPane",
+                "split": "right"
+            },
+            "id": "User.SplitPaneRight"
+        },
+        {
+            "command": "closePane",
+            "id": "User.ClosePane"
+        },
+        {
+            "command":
+            {
+                "action": "moveFocus",
+                "direction": "left"
+            },
+            "id": "User.MoveFocusLeft"
+        },
+        {
+            "command":
+            {
+                "action": "moveFocus",
+                "direction": "right"
+            },
+            "id": "User.MoveFocusRight"
+        },
+        {
+            "command":
+            {
+                "action": "moveFocus",
+                "direction": "up"
+            },
+            "id": "User.MoveFocusUp"
+        },
+        {
+            "command":
+            {
+                "action": "moveFocus",
+                "direction": "down"
+            },
+            "id": "User.MoveFocusDown"
+        },
+        {
+            "command":
+            {
+                "action": "resizePane",
+                "direction": "left"
+            },
+            "id": "User.ResizePaneLeft"
+        },
+        {
+            "command":
+            {
+                "action": "resizePane",
+                "direction": "right"
+            },
+            "id": "User.ResizePaneRight"
+        },
+        {
+            "command":
+            {
+                "action": "resizePane",
+                "direction": "up"
+            },
+            "id": "User.ResizePaneUp"
+        },
+        {
+            "command":
+            {
+                "action": "resizePane",
+                "direction": "down"
+            },
+            "id": "User.ResizePaneDown"
+        },
+        {
+            "command": "togglePaneZoom",
+            "id": "User.TogglePaneZoom"
+        },
+        {
+            "command": "paste",
+            "id": "User.Paste"
+        },
+        {
+            "command": "find",
+            "id": "User.Find"
+        },
+        {
+            "command": "quakeMode",
+            "id": "User.QuakeMode"
+        }
+    ],
+    "keybindings":
+    [
+        {
+            "id": "User.CommandPalette",
             "keys": "ctrl+shift+p"
         },
         {
-            "id": "Terminal.DuplicatePaneAuto",
+            "id": "User.DuplicatePaneAuto",
             "keys": "ctrl+shift+d"
         },
         {
-            "id": "Terminal.CopyToClipboard",
+            "id": "User.Copy",
             "keys": "ctrl+c"
         },
         {
-            "id": "Terminal.SplitPaneDown",
+            "id": "User.SplitPaneDown",
             "keys": "alt+shift+minus"
         },
         {
-            "id": "Terminal.OpenNewTab",
+            "id": "User.NewTab",
             "keys": "ctrl+t"
         },
         {
-            "id": "Terminal.SplitPaneRight",
+            "id": "User.SplitPaneRight",
             "keys": "alt+shift+0"
         },
         {
-            "id": "Terminal.ClosePane",
+            "id": "User.ClosePane",
             "keys": "ctrl+w"
         },
         {
-            "id": "Terminal.MoveFocusLeft",
+            "id": "User.MoveFocusLeft",
             "keys": "alt+left"
         },
         {
-            "id": "Terminal.MoveFocusRight",
+            "id": "User.MoveFocusRight",
             "keys": "alt+right"
         },
         {
-            "id": "Terminal.MoveFocusUp",
+            "id": "User.MoveFocusUp",
             "keys": "alt+up"
         },
         {
-            "id": "Terminal.MoveFocusDown",
+            "id": "User.MoveFocusDown",
             "keys": "alt+down"
         },
         {
-            "id": "Terminal.ResizePaneLeft",
+            "id": "User.ResizePaneLeft",
             "keys": "alt+shift+left"
         },
         {
-            "id": "Terminal.ResizePaneRight",
+            "id": "User.ResizePaneRight",
             "keys": "alt+shift+right"
         },
         {
-            "id": "Terminal.ResizePaneUp",
+            "id": "User.ResizePaneUp",
             "keys": "alt+shift+up"
         },
         {
-            "id": "Terminal.ResizePaneDown",
+            "id": "User.ResizePaneDown",
             "keys": "alt+shift+down"
         },
         {
-            "id": "Terminal.TogglePaneZoom",
+            "id": "User.TogglePaneZoom",
             "keys": "ctrl+shift+z"
         },
         {
-            "id": "Terminal.PasteFromClipboard",
+            "id": "User.Paste",
             "keys": "ctrl+v"
         },
         {
-            "id": "Terminal.FindText",
+            "id": "User.Find",
             "keys": "ctrl+shift+f"
         },
         {
-            "id": "Terminal.QuakeMode",
+            "id": "User.QuakeMode",
             "keys": "ctrl+shift+\\"
         },
         {
-            "id": "Terminal.DuplicatePaneAuto",
+            "id": "User.DuplicatePaneAuto",
             "keys": "alt+shift+d"
         }
     ],
