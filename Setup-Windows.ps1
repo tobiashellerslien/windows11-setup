@@ -18,6 +18,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $packagesJson = Join-Path $PSScriptRoot 'packages.json'
 $profileSource = Join-Path $PSScriptRoot 'configfiles\Microsoft.PowerShell_profile.ps1'
+$fastfetchConfigSource = Join-Path $PSScriptRoot 'configfiles\fastfetch.config.jsonc'
 $terminalSettingsSource = Join-Path $PSScriptRoot 'configfiles\terminal.settings.json'
 $vscodeSettingsSource = Join-Path $PSScriptRoot 'configfiles\vscode.settings.json'
 $flowLauncherArchive = Join-Path $PSScriptRoot 'configfiles\FlowLauncher.zip'
@@ -553,6 +554,90 @@ function Install-TerminalSettings {
         -BackupPrefix 'settings'
 }
 
+function Install-TerminalEnvironment {
+    param(
+        [Parameter(Mandatory)][string]$ProfileSourcePath,
+        [Parameter(Mandatory)][string]$FastfetchConfigSourcePath,
+        [Parameter(Mandatory)][string]$TerminalSettingsSourcePath
+    )
+
+    $terminalConfigFailures = [System.Collections.Generic.List[string]]::new()
+    $terminalConfigTasks = @(
+        [pscustomobject]@{
+            Name = 'Terminalverktøy'
+            Action = {
+                $dependencies = @(
+                    [pscustomobject]@{ Id = 'JanDeDobbeleer.OhMyPosh' }
+                    [pscustomobject]@{ Id = 'ajeetdsouza.zoxide' }
+                    [pscustomobject]@{ Id = 'Fastfetch-cli.Fastfetch' }
+                    [pscustomobject]@{ Id = 'Microsoft.WindowsTerminal' }
+                )
+                $failedDependencies = [System.Collections.Generic.List[string]]::new()
+                foreach ($dependency in $dependencies) {
+                    if (-not (Install-WingetPackage -Package $dependency)) {
+                        [void]$failedDependencies.Add([string]$dependency.Id)
+                    }
+                }
+                Sync-EnvironmentPath
+                if ($failedDependencies.Count -gt 0) {
+                    throw "Klarte ikke installere: $($failedDependencies -join ', ')."
+                }
+            }
+        }
+        [pscustomobject]@{
+            Name = 'JetBrainsMono Nerd Font'
+            Action = { Install-NerdFont }
+        }
+        [pscustomobject]@{
+            Name = 'Oh My Posh-tema'
+            Action = { Install-OhMyPoshTheme }
+        }
+        [pscustomobject]@{
+            Name = 'Terminal-Icons'
+            Action = { Install-TerminalIconsModule }
+        }
+        [pscustomobject]@{
+            Name = 'PowerShell-profil'
+            Action = {
+                Install-ConfigFile `
+                    -SourcePath $ProfileSourcePath `
+                    -DestinationPath $PROFILE.CurrentUserCurrentHost `
+                    -Description 'PowerShell-profilen' `
+                    -BackupPrefix 'profile'
+            }
+        }
+        [pscustomobject]@{
+            Name = 'Fastfetch-konfigurasjon'
+            Action = {
+                Install-ConfigFile `
+                    -SourcePath $FastfetchConfigSourcePath `
+                    -DestinationPath (Join-Path $env:USERPROFILE '.config\fastfetch\config.jsonc') `
+                    -Description 'Fastfetch-konfigurasjonen' `
+                    -BackupPrefix 'config'
+            }
+        }
+        [pscustomobject]@{
+            Name = 'Windows Terminal-innstillinger'
+            Action = { Install-TerminalSettings -SourcePath $TerminalSettingsSourcePath }
+        }
+    )
+
+    foreach ($task in $terminalConfigTasks) {
+        Write-Host "`n--- $($task.Name) ---" -ForegroundColor Cyan
+        try {
+            & $task.Action
+        } catch {
+            $failure = "$($task.Name): $_"
+            [void]$terminalConfigFailures.Add($failure)
+            Write-Warning $failure
+        }
+    }
+
+    if ($terminalConfigFailures.Count -gt 0) {
+        throw "Terminalkonfigurasjonen ble delvis fullført. Delfeil: $($terminalConfigFailures -join '; ')"
+    }
+}
+
 function Get-VSCodeCliPath {
     Sync-EnvironmentPath
     $codeCommand = Get-Command code.cmd -ErrorAction SilentlyContinue
@@ -751,36 +836,12 @@ Invoke-Section -Message "`nSette File Explorer til å åpne Downloads?" -Action 
     Set-ExplorerStartFolder
 }
 
-Invoke-Section -Message "`nSette opp PowerShell med Oh My Posh, zoxide, Terminal-Icons og profil?" -Action {
-    Write-Host "`n=== PowerShell-oppsett ===" -ForegroundColor Magenta
-    $dependencies = @(
-        [pscustomobject]@{ Id = 'JanDeDobbeleer.OhMyPosh' }
-        [pscustomobject]@{ Id = 'ajeetdsouza.zoxide' }
-    )
-    foreach ($dependency in $dependencies) {
-        if (-not (Install-WingetPackage -Package $dependency)) {
-            throw "Klarte ikke installere $($dependency.Id)."
-        }
-    }
-
-    Sync-EnvironmentPath
-    Install-OhMyPoshTheme
-    Install-TerminalIconsModule
-    Install-ConfigFile `
-        -SourcePath $profileSource `
-        -DestinationPath $PROFILE.CurrentUserCurrentHost `
-        -Description 'PowerShell-profilen' `
-        -BackupPrefix 'profile'
-}
-
-Invoke-Section -Message "`nInstallere JetBrainsMono Nerd Font med Oh My Posh?" -Action {
-    Write-Host "`n=== Nerd Font ===" -ForegroundColor Magenta
-    Install-NerdFont
-}
-
-Invoke-Section -Message "`nInstallere innstillingene for Windows Terminal?" -Action {
-    Write-Host "`n=== Windows Terminal ===" -ForegroundColor Magenta
-    Install-TerminalSettings -SourcePath $terminalSettingsSource
+Invoke-Section -Message "`nSette opp et komplett terminalmiljø med PowerShell, Fastfetch, Nerd Font og Windows Terminal?" -Action {
+    Write-Host "`n=== Terminalkonfigurasjon ===" -ForegroundColor Magenta
+    Install-TerminalEnvironment `
+        -ProfileSourcePath $profileSource `
+        -FastfetchConfigSourcePath $fastfetchConfigSource `
+        -TerminalSettingsSourcePath $terminalSettingsSource
 }
 
 Invoke-Section -Message "`nInstallere Flow Launcher-innstillinger, plugins og temaer?" -Action {

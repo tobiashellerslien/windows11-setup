@@ -452,5 +452,5 @@ Initialize-PromptTool
 
 if ($isInteractiveShell) {
     Invoke-Fastfetch
-    Write-Host "Use 'Show-Help' to display help" -ForegroundColor Yellow
+    Write-Host "`nUse 'Show-Help' to display help" -ForegroundColor Yellow
 }

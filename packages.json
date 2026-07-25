@@ -1,7 +1,6 @@
 [
   { "Id": "Microsoft.PowerShell" },
   { "Id": "Git.Git" },
-  { "Id": "Microsoft.WindowsTerminal" },
   { "Id": "7zip.7zip"},
   { "Id": "Bitwarden.Bitwarden" },
   { "Id": "Brave.Brave" },
@@ -19,7 +18,6 @@
   { "Id": "AdrienAllard.FileConverter" },
   { "Id": "Surfshark.Surfshark" },
   { "Id": "PrismLauncher.PrismLauncher" },
-  { "Id": "Fastfetch-cli.Fastfetch" },
   { "Id": "Microsoft.OneDrive" },
   { "Id": "yt-dlp.yt-dlp.nightly" },
   { "Id": "shinchiro.mpv" },
