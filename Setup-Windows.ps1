@@ -465,7 +465,10 @@ function Remove-GitShellContextMenus {
 
 function Set-ExplorerStartFolder {
     $explorerPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced'
-    New-Item -Path $explorerPath -Force | Out-Null
+    if (-not (Test-Path -LiteralPath $explorerPath)) {
+        New-Item -Path $explorerPath | Out-Null
+    }
+
     $currentValue = (Get-ItemProperty -Path $explorerPath -Name LaunchTo -ErrorAction SilentlyContinue).LaunchTo
     if ($currentValue -eq 3) {
         Write-Host 'File Explorer åpner allerede Downloads.' -ForegroundColor DarkGray

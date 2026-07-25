@@ -20,7 +20,6 @@ irm https://christitus.com/win | iex
 
 - Kjør Chris Titus WinUtil og bruk anbefalte tweaks.
 - Kjør O&O ShutUp10++ med anbefalte innstillinger.
-    - Behold password reveal-knappen og skru av Game Bar.
 
 ```powershell
 irm https://christitus.com/win | iex
@@ -94,3 +93,7 @@ ssh -T git@github.com
         - `.mp4`, `.mkv`, `.webm`, `.mov`, `.avi`, `.m4v`, `.mpeg`, `.mpg`
     - Sumatra for PDF
 - Sett opp OneDrive og logg inn i øvrige apper.
+
+
+
+
