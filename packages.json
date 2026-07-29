@@ -22,5 +22,7 @@
   { "Id": "yt-dlp.yt-dlp.nightly" },
   { "Id": "shinchiro.mpv" },
   { "Id": "seerge.g-helper" },
-  { "Id": "ente-io.auth-desktop" }
+  { "Id": "ente-io.auth-desktop" },
+  { "Id": "Klocman.BulkCrapUninstaller" },
+  { "Id": "Guru3D.RTSS" }
 ]

@@ -1,33 +1,45 @@
 # Tobias' Windows 11-oppsett
 
-## 0. Lag Windows 11-ISO
+## Forberedelser
+1. Lag Windows 11 ISO
 
-- Last ned Windows 11 fra [Microsoft](https://www.microsoft.com/nb-no/software-download/windows11) med språk Engelsk (USA).
-- Bygg ISO-en med Chris Titus WinUtil:
+    - Last ned Windows 11 fra [Microsoft](https://www.microsoft.com/nb-no/software-download/windows11) med språk Engelsk (USA).
+    - Bygg ISO-en med Chris Titus WinUtil:
 
 ```powershell
 irm https://christitus.com/win | iex
 ```
 
-- Flash ISO-en med [Rufus](https://rufus.ie/en/).
+    - Flash ISO-en med [Rufus](https://rufus.ie/en/) eller med WinUtil etter ISO er ferdig bygget.
 
-## 1. Drivere og oppdateringer
+2. Last ned drivere fra [ASUS](https://www.asus.com/supportonly/ga503qm/helpdesk_download/), alt utenom NVIDIA drivere, til en minnepinne.
 
-- Last ned drivere fra [ASUS](https://www.asus.com/supportonly/ga503qm/helpdesk_download/).
-- Installer alle Windows Update-oppdateringer.
+## 1. Drivere
 
-## 2. Windows-justeringer
+Rett etter fresh windows installasjon:
+- Installer driverne fra minnepinnen, begynn med AMD chipset driver
+- Restart
+- Nå som internett funker, installer NVCleanstall
+```powershell
+winget install TechPowerUp.NVCleanstall
+```
+- Installer NVIDIA GPU driver med NVCleanstall
+- Gå deretter inn på Windows Update og installer alle oppdateringer
 
-- Kjør Chris Titus WinUtil og bruk anbefalte tweaks.
-- Kjør O&O ShutUp10++ med anbefalte innstillinger.
+## 2. WinUtil
+
+- Kjør Chris Titus WinUtil
+    - Advanced tweaks++
+    - Toggles
+    - DNS
+    - Kjør O&O ShutUp10++ med anbefalte innstillinger.
+    - Power Panel -> skru av Fast Startup, skru på Hibernation
 
 ```powershell
 irm https://christitus.com/win | iex
 ```
 
 ## 3. Kjør setup-scriptet
-
-Kontroller at `winget --version` fungerer. Oppdater ellers **App Installer** fra Microsoft Store.
 
 Kjør først i Windows PowerShell 5.1:
 
@@ -56,14 +68,16 @@ Scriptet ber om administratorrettigheter og `y/n` før hver del. Det kan kjøres
 ### Brave
 
 - Sett som standard nettleser
-- Kom i gang → importer `configfiles/bookmarks.html` via `brave://bookmarks`.
+- Kom i gang → importer `configfiles/bookmarks.html`
 - Kom i gang → Ved oppstart → Ny fane.
-- Utseende → vis startsideknappen.
-- Utseende → bruk bred adresselinje.
+- Utseende → vis startsideknappen, bruk bred adresselinje.
 
 ### G-Helper
 
-Start med Windows, åpne med ASUS ROG-knappen, gå gjennom innstillingene.
+- Start med Windows
+- Åpne med ASUS ROG-knappen
+- Stopp ASUS services
+- Gå gjennom innstillingene.
 
 ### SSH-nøkkel for GitHub
 
@@ -93,7 +107,4 @@ ssh -T git@github.com
         - `.mp4`, `.mkv`, `.webm`, `.mov`, `.avi`, `.m4v`, `.mpeg`, `.mpg`
     - Sumatra for PDF
 - Sett opp OneDrive og logg inn i øvrige apper.
-
-
-
-
+- Sjekk om Dolby Access er installert, hvis ikke, installer fra msstore. Sjekk at Dolby Atmos er valgt under "Spatial sound".
